@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         P站功能加强
 // @namespace    https://greasyfork.org/zh-CN/users/1296281
-// @version      1.0.1
+// @version      1.0.2
 // @license      GPL-3.0
 // @description  功能：1、收藏优化 2、添加收藏，自动填写标签
 // @author       ShineByPupil
@@ -105,17 +105,19 @@
     }
 
     connectedCallback() {
-      const [input1, input2, delBtn] = this.template.content.children;
-      delBtn.onclick = () => {
-        input1.remove();
-        input2.remove();
-        delBtn.remove();
-        delBtn.onclick = null;
-      };
-
       this.addBtn.addEventListener("click", () => {
         const item = this.template.content.cloneNode(true);
+        const [input1, input2, delBtn] = item.children;
+
         this.container.append(item);
+
+        const handleDel = () => {
+          input1.remove();
+          input2.remove();
+          delBtn.remove();
+          delBtn.removeEventListener("click", handleDel);
+        };
+        delBtn.addEventListener("click", handleDel);
       });
 
       this.load();
@@ -126,9 +128,17 @@
 
       this.tagsArr.forEach((tag) => {
         const item = this.template.content.cloneNode(true);
-        const [input1, input2] = item.children;
+        const [input1, input2, delBtn] = item.children;
 
         this.container.appendChild(item);
+
+        const handleDel = () => {
+          input1.remove();
+          input2.remove();
+          delBtn.remove();
+          delBtn.removeEventListener("click", handleDel);
+        };
+        delBtn.addEventListener("click", handleDel);
         [input1.value, input2.value] = [tag[0], tag[1]];
       });
     }
