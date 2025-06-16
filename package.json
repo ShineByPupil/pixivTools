@@ -1,0 +1,13 @@
+{
+  "name": "pixivTools",
+  "version": "1.0.0",
+  "description": "pixiv自用工具",
+  "main": "pixivTools.user.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "private": true,
+  "devDependencies": {
+    "prettier": "^3.5.3"
+  }
+}
