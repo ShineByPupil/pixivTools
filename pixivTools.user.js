@@ -1,14 +1,14 @@
 // ==UserScript==
 // @name         P站功能加强
 // @namespace    https://greasyfork.org/zh-CN/users/1296281
-// @version      1.0.2
+// @version      1.0.3
 // @license      GPL-3.0
 // @description  功能：1、收藏优化 2、添加收藏，自动填写标签
 // @author       ShineByPupil
 // @match        *://www.pixiv.net/*
 // @icon         https://www.pixiv.net/favicon20250122.ico
 // @grant        none
-// @require      https://update.greasyfork.org/scripts/539247/1608663/%E9%80%9A%E7%94%A8%E7%BB%84%E4%BB%B6%E5%BA%93.js
+// @require      https://update.greasyfork.org/scripts/539247/1609899/%E9%80%9A%E7%94%A8%E7%BB%84%E4%BB%B6%E5%BA%93.js
 // ==/UserScript==
 
 (async function () {
