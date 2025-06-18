@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         P站功能加强
 // @namespace    https://greasyfork.org/zh-CN/users/1296281
-// @version      1.0.3
+// @version      1.1.0
 // @license      GPL-3.0
 // @description  功能：1、收藏优化 2、添加收藏，自动填写标签
 // @author       ShineByPupil
@@ -184,7 +184,7 @@
 
     init() {
       // 快速收藏
-      if (["users", "artworks"].includes(pageType)) this.initQuickFavorite();
+      this.initQuickFavorite();
 
       // 自动收藏
       if (pageType === "bookmark_add") this.initAutoFavorite();
@@ -201,6 +201,7 @@
           :host {
             position: absolute;
             display: none;
+            z-index: 1;
           } 
         
           button {
@@ -237,14 +238,19 @@
       // 鼠标移入事件 - 在插画上显示收藏按钮
       document.addEventListener("mouseover", (e) => {
         if (e.target.tagName === "IMG") {
-          const a = e.target.closest("a");
-          const href = a.getAttribute("href");
-          this.illust_id = href.match(/\d+$/)[0];
+          const link = e.target.getAttribute("src") || "";
 
-          const rect = a.getBoundingClientRect();
-          this.quick_favorite_btn.style.left = `${rect.left + 10 + window.scrollX}px`;
-          this.quick_favorite_btn.style.top = `${rect.top + 10 + window.scrollY}px`;
-          this.quick_favorite_btn.style.display = "block";
+          if (link.startsWith("https://i.pximg.net/")) {
+            const re = /\d+(?=_p0|_square|_master)/;
+            this.illust_id = link.match(re)?.[0] || null;
+
+            if (this.illust_id) {
+              const rect = e.target.getBoundingClientRect();
+              this.quick_favorite_btn.style.left = `${rect.left + 10 + window.scrollX}px`;
+              this.quick_favorite_btn.style.top = `${rect.top + 10 + window.scrollY}px`;
+              this.quick_favorite_btn.style.display = "block";
+            }
+          }
         }
       });
 
@@ -253,11 +259,13 @@
         if (this.quick_favorite_btn.matches(":hover")) return;
         if (e.target.tagName !== "IMG") return;
 
+        this.illust_id = null;
         this.quick_favorite_btn.style.display = "none";
       });
 
       // 页面失焦事件 - 隐藏收藏按钮
       window.addEventListener("blur", () => {
+        this.illust_id = null;
         this.quick_favorite_btn.style.display = "none";
       });
     }
