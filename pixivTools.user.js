@@ -1,9 +1,9 @@
 // ==UserScript==
 // @name         P站功能加强
 // @namespace    https://greasyfork.org/zh-CN/users/1296281
-// @version      1.1.0
+// @version      1.2.0
 // @license      GPL-3.0
-// @description  功能：1、收藏优化 2、添加收藏，自动填写标签
+// @description  功能：1、快速收藏按钮 2、添加收藏，自动填写标签 3、修改收藏，自动提醒标签
 // @author       ShineByPupil
 // @match        *://www.pixiv.net/*
 // @icon         https://www.pixiv.net/favicon20250122.ico
@@ -377,30 +377,83 @@
         document.body.appendChild(autoTagConfigBtn);
       }
 
-      // 功能三：新增标签，自动填充
+      // 功能三：收藏：新增自动填充、修改高亮提示遗漏
       {
+        // 插画标签
+        const tags = Array.from(
+          document.querySelectorAll(
+            ".work-tags-container .list-items span.tag",
+          ),
+        ).map((n) => n.getAttribute("data-tag"));
+
+        // 插画标签（匹配配置）
+        const matchedTags = tagsManager.tagsArr.filter(([key]) =>
+          tags.includes(key),
+        );
+
+        // 个人标签（匹配配置 + 匹配插画标签）
+        let matchedPersonTagsSet = new Set(
+          matchedTags.map((n) => n[1] || n[0]),
+        );
+        const tagsInput = document.querySelector(".input-box.tags input");
+
         if (!removeForm) {
-          const tags = Array.from(
-            document.querySelectorAll(".tag-cloud.work li span.tag"),
-          ).map((n) => n.getAttribute("data-tag"));
+          // 新增
+          tagsInput.value = matchedPersonTagsSet.join(" ");
+        } else {
+          // 修改
+          const cssTemplate = document.createElement("template");
+          cssTemplate.innerHTML = `
+            <style>
+              .pixivTools__matched:not(.selected):not(:hover) {
+                font-weight: bold;
+                animation: glow-breath 2.5s ease-in-out infinite;
+              }
+              
+              @keyframes glow-breath {
+                0%, 100% {
+                  text-shadow: none;
+                }
+                50% {
+                  text-shadow:
+                    0 0 8px  rgba(85, 150, 230, 0.6),
+                    0 0 16px rgba(85, 150, 230, 0.6),
+                    0 0 32px rgba(85, 150, 230, 0.4),
+                    0 0 48px rgba(85, 150, 230, 0.3);
+                }
+              }
+            </style>
+          `;
 
-          let result = new Set();
+          document.head.appendChild(cssTemplate.content);
 
-          tagsManager.tagsArr.forEach(([key, value]) => {
-            if (tags.includes(key)) {
-              result.add(value || key);
-            }
+          requestIdleCallback(() => {
+            const personTags = Array.from(
+              document.querySelectorAll(
+                ".tag-cloud-container .list-items span.tag",
+              ),
+            );
+
+            console.log(matchedTags);
+            personTags.forEach((tag) => {
+              if (matchedPersonTagsSet.has(tag.textContent)) {
+                tag.classList.add("pixivTools__matched");
+              }
+            });
           });
-
-          const input = document.querySelector(".input-box.tags input");
-          input.value = result.join(" ");
         }
+      }
+
+      // 功能四：ESC 关闭页面
+      {
+        document.addEventListener("keydown", (e) => {
+          if (e.key === "Escape") {
+            window.close();
+          }
+        });
       }
     }
   }
-
-  window.messageBox = document.createElement("mx-message-box");
-  document.body.appendChild(messageBox);
 
   new FavoritesManager();
 })();
