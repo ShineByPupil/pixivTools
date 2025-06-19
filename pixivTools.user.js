@@ -1,14 +1,14 @@
 // ==UserScript==
 // @name         P站功能加强
 // @namespace    https://greasyfork.org/zh-CN/users/1296281
-// @version      1.2.0
+// @version      1.3.0
 // @license      GPL-3.0
 // @description  功能：1、快速收藏按钮 2、添加收藏，自动填写标签 3、修改收藏，自动提醒标签
 // @author       ShineByPupil
 // @match        *://www.pixiv.net/*
 // @icon         https://www.pixiv.net/favicon20250122.ico
 // @grant        none
-// @require      https://update.greasyfork.org/scripts/539247/1609899/%E9%80%9A%E7%94%A8%E7%BB%84%E4%BB%B6%E5%BA%93.js
+// @require      https://update.greasyfork.org/scripts/539247/1610436/%E9%80%9A%E7%94%A8%E7%BB%84%E4%BB%B6%E5%BA%93.js
 // ==/UserScript==
 
 (async function () {
@@ -24,13 +24,15 @@
         ? "bookmark_add" // 收藏页
         : "";
 
+  // 标签设置弹窗
   class TagsManager extends HTMLElement {
+    static #instance = null;
     tagsArr = [];
 
     constructor() {
       super();
 
-      this.tagsArr = JSON.parse(localStorage.getItem("tagsArr"));
+      this.tagsArr = JSON.parse(localStorage.getItem("tagsArr")) || [];
 
       this.template = document.createElement("template");
       this.template.innerHTML = `
@@ -41,8 +43,16 @@
 
       const htmlTemplate = document.createElement("template");
       htmlTemplate.innerHTML = `
-        <mx-button class="add" type="primary">新增</mx-button>
-        <div class="container"></div>
+        <mx-dialog class="dialog" confirm-text="保存">
+          <span slot="header">标签自动填写设置</span>
+          
+          <mx-button class="add" type="primary">新增</mx-button>
+          <div class="container"></div>
+          
+          <mx-button class="export-btn" slot="button-center">导出</mx-button>
+          <mx-button class="import-btn" slot="button-center">导入</mx-button>
+        </mx-dialog>
+        
       `;
 
       const cssTemplate = document.createElement("template");
@@ -100,8 +110,42 @@
       this.attachShadow({ mode: "open" });
       this.shadowRoot.append(htmlTemplate.content, cssTemplate.content);
 
+      // 弹窗内部
+      this.dialog = this.shadowRoot.querySelector(".dialog");
       this.container = this.shadowRoot.querySelector(".container");
       this.addBtn = this.shadowRoot.querySelector(".add");
+      this.exportBtn = this.shadowRoot.querySelector(".export-btn");
+      this.importBtn = this.shadowRoot.querySelector(".import-btn");
+
+      // 开启弹窗按钮
+      this.autoTagConfigBtn = document.createElement("div");
+      this.autoTagConfigBtn.attachShadow({ mode: "open" });
+      this.autoTagConfigBtn.shadowRoot.innerHTML = `
+        <mx-button circle>
+          <mx-icon type="setting"></mx-icon>
+        </mx-button>
+      
+        <style>
+          mx-button::part(button) {
+            height: 48px;
+            padding: 10px;
+            position: fixed;
+            right: 28px;
+            bottom: 100px;
+            z-index: 2501;
+            color: #fff;
+            background-color: var(--charcoal-surface4);
+            border: none;
+          }
+          mx-button::part(button):hover {
+            background-color: var(--charcoal-surface4-hover);
+          }
+          mx-icon {
+            width: 100%;
+            height: 100%;
+          }
+        </style>
+      `;
     }
 
     connectedCallback() {
@@ -119,8 +163,54 @@
         };
         delBtn.addEventListener("click", handleDel);
       });
+      // 事件委托 - 删除按钮
+      this.container.addEventListener("click", (e) => {
+        if (
+          e.target.tagName === "MX-BUTTON" &&
+          e.target.classList.contains("del")
+        ) {
+          e.target?.previousElementSibling?.previousElementSibling?.remove();
+          e.target?.previousElementSibling?.remove();
+          e.target?.remove();
+        }
+      });
+      this.exportBtn.addEventListener("click", () => {
+        navigator.clipboard.writeText(JSON.stringify(this.tagsArr));
+      });
+      this.importBtn.addEventListener("click", () => {
+        const userInput = prompt("请输入配置：");
+
+        if (userInput !== null) {
+          this.tagsArr = JSON.parse(userInput);
+          this.load();
+        }
+      });
+      this.dialog.addEventListener("confirm", () => this.save());
+      this.dialog.addEventListener("cancel", () => this.load());
+
+      this.autoTagConfigBtn.addEventListener("click", () => {
+        this.dialog.open();
+      });
 
       this.load();
+    }
+
+    static get instance() {
+      if (!this.#instance) {
+        // 初始化
+        const el = document.createElement(this.tagName);
+        document.documentElement.appendChild(el);
+        this.#instance = el;
+
+        document.body.appendChild(el);
+        document.body.appendChild(el.autoTagConfigBtn);
+      }
+
+      return this.#instance;
+    }
+    // 避免和内置 name 命名冲突
+    static get tagName() {
+      return "pixiv-tools-tags-manager";
     }
 
     load() {
@@ -132,13 +222,6 @@
 
         this.container.appendChild(item);
 
-        const handleDel = () => {
-          input1.remove();
-          input2.remove();
-          delBtn.remove();
-          delBtn.removeEventListener("click", handleDel);
-        };
-        delBtn.addEventListener("click", handleDel);
         [input1.value, input2.value] = [tag[0], tag[1]];
       });
     }
@@ -167,27 +250,53 @@
       localStorage.setItem("tagsArr", JSON.stringify(this.tagsArr));
       this.load();
 
-      MxMessageBox.success("保存成功");
+      MxMessage.success("保存成功");
     }
   }
 
-  customElements.define("pixiv-tools-tags-manager", TagsManager);
+  if (!customElements.get(TagsManager.tagName)) {
+    customElements.define(TagsManager.tagName, TagsManager);
+  } else {
+    console.error(`[pixivTools] 组件 ${TagsManager.tagName} 已注册`);
+  }
 
   // 收藏管理
   class FavoritesManager {
     illust_id = null; // 作品id
     quick_favorite_btn = null; // 收藏按钮
+    USER_ID = null;
 
     constructor() {
+      this.USER_ID = Object.keys(localStorage)
+        .find((n) => /_\d+/.test(n))
+        ?.match(/(?<=_)\d+/)?.[0];
+
       this.init();
     }
 
     init() {
+      this.initCss();
+
       // 快速收藏
       this.initQuickFavorite();
 
       // 自动收藏
       if (pageType === "bookmark_add") this.initAutoFavorite();
+    }
+
+    initCss() {
+      const cssTemplate = document.createElement("template");
+      cssTemplate.innerHTML = `
+        <style>
+          ._work:before,
+          ._work:after,
+          .sc-hnotl9-0.gDHFA-d {
+            pointer-events: none;
+          }
+        </style>
+      `;
+
+      document.head.appendChild(cssTemplate.content);
     }
 
     // 快速收藏
@@ -274,7 +383,7 @@
     initAutoFavorite() {
       let addForm = null; // 添加收藏表单
       let removeForm = null; // 取消收藏表单 - 同时判断是否首次收藏
-      let tagsManager = document.createElement("pixiv-tools-tags-manager");
+      let tagsManager = TagsManager.instance; //功能二： 标签设置弹窗
 
       // 功能一：提交表单后，页面自动关闭
       {
@@ -296,85 +405,6 @@
         window.addEventListener("unload", () => {
           if (!window.closed && isSubmit) window.close();
         });
-      }
-
-      // 功能二：标签设置弹窗
-      {
-        const template = document.createElement("template");
-        template.innerHTML = `
-          <mx-dialog confirm-text="保存">
-            <span slot="header">标签自动填写设置</span>
-            
-            <mx-button class="export" slot="button-center">导出</mx-button>
-            <mx-button class="import" slot="button-center">导入</mx-button>
-          </mx-dialog>
-        `;
-        let tagConfigDialog = template.content.firstElementChild;
-        tagConfigDialog
-          .querySelector(".export")
-          .addEventListener("click", (e) =>
-            navigator.clipboard.writeText(JSON.stringify(tagsManager.tagsArr)),
-          );
-        tagConfigDialog
-          .querySelector(".import")
-          .addEventListener("click", (e) => {
-            const userInput = prompt("请输入配置：");
-
-            if (userInput !== null) {
-              tagsManager.tagsArr = JSON.parse(userInput);
-              tagsManager.load();
-            }
-          });
-
-        tagConfigDialog.append(tagsManager);
-
-        tagConfigDialog.addEventListener("confirm", () => tagsManager.save());
-        tagConfigDialog.addEventListener("cancel", () => tagsManager.load());
-
-        const autoTagConfigBtn = document.createElement("div");
-        autoTagConfigBtn.attachShadow({ mode: "open" });
-        autoTagConfigBtn.shadowRoot.innerHTML = `
-          <button id="pp-settings">
-            <svg xmlns="http://www.w3.org/2000/svg" x="0px" y="0px" viewBox="0 0 1000 1000" xml:space="preserve" style="fill: white;">
-              <g>
-                <path d="M377.5,500c0,67.7,54.8,122.5,122.5,122.5S622.5,567.7,622.5,500S567.7,377.5,500,377.5S377.5,432.3,377.5,500z"></path><path d="M990,546v-94.8L856.2,411c-8.9-35.8-23-69.4-41.6-100.2L879,186L812,119L689,185.2c-30.8-18.5-64.4-32.6-100.2-41.5L545.9,10h-94.8L411,143.8c-35.8,8.9-69.5,23-100.2,41.5L186.1,121l-67,66.9L185.2,311c-18.6,30.8-32.6,64.4-41.5,100.3L10,454v94.8L143.8,589c8.9,35.8,23,69.4,41.6,100.2L121,814l67,67l123-66.2c30.8,18.6,64.5,32.6,100.3,41.5L454,990h94.8L589,856.2c35.8-8.9,69.4-23,100.2-41.6L814,879l67-67l-66.2-123.1c18.6-30.7,32.6-64.4,41.5-100.2L990,546z M500,745c-135.3,0-245-109.7-245-245c0-135.3,109.7-245,245-245s245,109.7,245,245C745,635.3,635.3,745,500,745z"></path>
-              </g>
-            </svg>
-          </button>
-        
-          <style>
-            :host {
-              position: fixed;
-              right: 28px;
-              bottom: 100px;
-              z-index: 2501;
-            }
-            
-            button {
-              background-color: var(--charcoal-surface4);
-              margin-top: 5px;
-              cursor: pointer;
-              border: none;
-              padding: 12px;
-              border-radius: 24px;
-              width: 48px;
-              height: 48px;
-              transition: background-color 0.2s;
-              outline: none;
-            }
-            button:hover {
-              background-color: var(--charcoal-surface4-hover);
-            }
-          </style>
-        `;
-
-        // 标签配置按钮点击事件
-        autoTagConfigBtn.shadowRoot
-          .querySelector("button")
-          .addEventListener("click", () => tagConfigDialog.open());
-
-        document.body.appendChild(tagConfigDialog);
-        document.body.appendChild(autoTagConfigBtn);
       }
 
       // 功能三：收藏：新增自动填充、修改高亮提示遗漏
@@ -434,7 +464,6 @@
               ),
             );
 
-            console.log(matchedTags);
             personTags.forEach((tag) => {
               if (matchedPersonTagsSet.has(tag.textContent)) {
                 tag.classList.add("pixivTools__matched");
@@ -442,15 +471,6 @@
             });
           });
         }
-      }
-
-      // 功能四：ESC 关闭页面
-      {
-        document.addEventListener("keydown", (e) => {
-          if (e.key === "Escape") {
-            window.close();
-          }
-        });
       }
     }
   }
