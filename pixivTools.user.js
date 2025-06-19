@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         P站功能加强
 // @namespace    https://greasyfork.org/zh-CN/users/1296281
-// @version      1.3.0
+// @version      1.3.1
 // @license      GPL-3.0
 // @description  功能：1、快速收藏按钮 2、添加收藏，自动填写标签 3、修改收藏，自动提醒标签
 // @author       ShineByPupil
@@ -251,6 +251,93 @@
       this.load();
 
       MxMessage.success("保存成功");
+    }
+
+    // 检查收藏标签是否有遗漏
+    async checkAllFavorite() {
+      if (!this.USER_ID) {
+        throw new Error("[pixivTools] USER_ID 获取不到");
+      }
+
+      const tagsArr = JSON.parse(localStorage.getItem("tagsArr"));
+      if (!tagsArr || !tagsArr.length) {
+        throw new Error("[pixivTools] tagsArr为空，请先在收藏配置弹窗设置规则");
+      }
+
+      let total = null; // 收藏总数
+      let limit = 100;
+
+      await this.bookmarksAPI(0, 1).then((res) => {
+        total = res.body.total;
+      });
+
+      // const pageCount = Math.ceil(total / limit);
+      const pageCount = 3;
+      const pages = Array.from({ length: pageCount }, (_, i) => i);
+      const tasks = pages.map((page) =>
+        MxMgr.enqueue(() => this.bookmarksAPI(page, 1)),
+      );
+
+      Promise.all(tasks).then((datas) => {
+        const illust_id_list = []; // 标签不齐全的插画
+
+        datas.forEach((item) => {
+          const { works, bookmarkTags } = item.body;
+
+          works.forEach((work) => {
+            const bookmarkData = bookmarkTags[work.bookmarkData.id]; // 用户收藏标签
+            const tags = work.tags; // 插画标签
+            // 匹配插画标签
+            const matchedTags = tagsArr.filter(([key]) => tags.includes(key));
+            // 个人标签（匹配配置 + 匹配插画标签）
+            const matchedPersonTagsSet = new Set(
+              matchedTags.map((n) => n[1] || n[0]),
+            );
+
+            if (
+              matchedPersonTagsSet.some((tag) => !bookmarkData.includes(tag))
+            ) {
+              illust_id_list.push(
+                "https://www.pixiv.net/bookmark_add.php?type=illust&illust_id=" +
+                  work.id,
+              );
+            }
+          });
+        });
+
+        console.log("标签不齐全的插画:", illust_id_list);
+      });
+    }
+
+    // API - 获取全部收藏
+    async bookmarkAPI() {
+      if (!this.USER_ID) {
+        throw new Error("[pixivTools] USER_ID 获取不到");
+      }
+
+      const res = await fetch(
+        `/ajax/user/${this.USER_ID}/illusts/bookmark/tags`,
+      );
+      if (!res.ok) {
+        throw new Error(`[pixivTools] bookmark 请求失败：${res.status}`);
+      }
+
+      return res.json();
+    }
+    // API - 获取全部收藏
+    async bookmarksAPI(page, pageSize = 100) {
+      if (!this.USER_ID) {
+        throw new Error("[pixivTools] USER_ID 获取不到");
+      }
+
+      const res = await fetch(
+        `/ajax/user/${this.USER_ID}/illusts/bookmarks?tag=&offset=${page}&limit=${pageSize}&rest=show`,
+      );
+      if (!res.ok) {
+        throw new Error(`[pixivTools] 第 ${page} 页请求失败：${res.status}`);
+      }
+
+      return res.json();
     }
   }
 
