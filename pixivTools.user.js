@@ -1,14 +1,14 @@
 // ==UserScript==
 // @name         P站功能加强
 // @namespace    https://greasyfork.org/zh-CN/users/1296281
-// @version      1.3.7
+// @version      1.3.8
 // @license      GPL-3.0
 // @description  功能：1、快速收藏按钮 2、添加收藏，自动填写标签 3、修改收藏，自动提醒标签
 // @author       ShineByPupil
 // @match        *://www.pixiv.net/*
 // @icon         https://www.pixiv.net/favicon20250122.ico
 // @grant        none
-// @require      https://raw.githubusercontent.com/ShineByPupil/commonComponents/refs/heads/master/commonComponents.lib.js
+// @require      https://update.greasyfork.org/scripts/539247/1611171/%E9%80%9A%E7%94%A8%E7%BB%84%E4%BB%B6%E5%BA%93.js
 // ==/UserScript==
 
 (async function () {
