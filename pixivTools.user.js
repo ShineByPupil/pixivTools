@@ -1,14 +1,14 @@
 // ==UserScript==
 // @name         P站功能加强
 // @namespace    https://greasyfork.org/zh-CN/users/1296281
-// @version      1.3.3
+// @version      1.3.4
 // @license      GPL-3.0
 // @description  功能：1、快速收藏按钮 2、添加收藏，自动填写标签 3、修改收藏，自动提醒标签
 // @author       ShineByPupil
 // @match        *://www.pixiv.net/*
 // @icon         https://www.pixiv.net/favicon20250122.ico
 // @grant        none
-// @require      https://update.greasyfork.org/scripts/539247/1610436/%E9%80%9A%E7%94%A8%E7%BB%84%E4%BB%B6%E5%BA%93.js
+// @require      https://raw.githubusercontent.com/ShineByPupil/commonComponents/refs/heads/master/commonComponents.lib.js
 // ==/UserScript==
 
 (async function () {
@@ -126,18 +126,22 @@
         </mx-button>
       
         <style>
-          mx-button::part(button) {
+          mx-button {
             height: 48px;
-            padding: 10px;
             position: fixed;
             right: 28px;
             bottom: 100px;
             z-index: 2501;
             color: #fff;
             background-color: var(--charcoal-surface4);
+          }
+          mx-button:hover {
+            color: #fff;
+          }
+          mx-button::part(button) {
             border: none;
           }
-          mx-button::part(button):hover {
+          mx-button:hover {
             background-color: var(--charcoal-surface4-hover);
           }
           mx-icon {
