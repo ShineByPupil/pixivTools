@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         P站功能加强
 // @namespace    https://greasyfork.org/zh-CN/users/1296281
-// @version      1.3.8
+// @version      1.4.0
 // @license      GPL-3.0
 // @description  功能：1、快速收藏按钮 2、添加收藏，自动填写标签 3、修改收藏，自动提醒标签
 // @author       ShineByPupil
@@ -36,6 +36,7 @@
 
       this.template = document.createElement("template");
       this.template.innerHTML = `
+        <span></span>
         <mx-input placeholder="标签"></mx-input>
         <mx-input placeholder="标签别名"></mx-input>
         <mx-button class="del" type="danger">删除</mx-button>
@@ -65,7 +66,8 @@
             max-height: 40vh;
             overflow: auto;
             display: grid;
-            grid-template-columns: 1fr 1fr auto;
+            grid-template-columns: auto 1fr 1fr auto;
+            align-items: center;
             gap: 6px 10px;
             margin-top: 6px;
           }
@@ -155,17 +157,7 @@
     connectedCallback() {
       this.addBtn.addEventListener("click", () => {
         const item = this.template.content.cloneNode(true);
-        const [input1, input2, delBtn] = item.children;
-
-        this.container.append(item);
-
-        const handleDel = () => {
-          input1.remove();
-          input2.remove();
-          delBtn.remove();
-          delBtn.removeEventListener("click", handleDel);
-        };
-        delBtn.addEventListener("click", handleDel);
+        this.container.prepend(item);
       });
       // 事件委托 - 删除按钮
       this.container.addEventListener("click", (e) => {
@@ -173,9 +165,12 @@
           e.target.tagName === "MX-BUTTON" &&
           e.target.classList.contains("del")
         ) {
-          e.target?.previousElementSibling?.previousElementSibling?.remove();
-          e.target?.previousElementSibling?.remove();
-          e.target?.remove();
+          let el = e.target;
+          for (let i = 0; i < 4 && el; i++) {
+            const prev = el.previousElementSibling;
+            el.remove();
+            el = prev;
+          }
         }
       });
       this.exportBtn.addEventListener("click", () => {
@@ -219,13 +214,17 @@
     load() {
       this.container.innerHTML = "";
 
-      this.tagsArr.forEach((tag) => {
+      this.tagsArr.forEach((tag, index) => {
         const item = this.template.content.cloneNode(true);
-        const [input1, input2, delBtn] = item.children;
+        const [no, input1, input2, delBtn] = item.children;
 
-        this.container.appendChild(item);
+        this.container.prepend(item);
 
-        [input1.value, input2.value] = [tag[0], tag[1]];
+        [no.textContent, input1.value, input2.value] = [
+          index + 1,
+          tag[0],
+          tag[1],
+        ];
       });
     }
     save() {
@@ -236,7 +235,8 @@
           // 把当前项放到最后一个子数组里
           chunks[chunks.length - 1].push(item);
           return chunks;
-        }, []);
+        }, [])
+        .reverse();
 
       for (let i = this.tagsArr.length - 1; i >= 0; i--) {
         if (!this.tagsArr[i][0]) {
